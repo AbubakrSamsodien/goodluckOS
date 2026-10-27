@@ -157,7 +157,10 @@ if [ "$MKFS_RC" -ne 0 ]; then
     exit 1
 fi
 
-if ! mount "$PART" "$MOUNT_POINT" 2>>"$LOG"; then
+# Mount by mount point so the fstab options (uid=1000,gid=1000,umask=022) apply. Mounting the
+# raw device with a bare `mount "$PART"` gave a root-owned HOME, so the player user could not
+# write to it until the next reboot.
+if ! mount "$MOUNT_POINT" 2>>"$LOG"; then
     log "ERROR: mount failed after reformat"
     exit 1
 fi
