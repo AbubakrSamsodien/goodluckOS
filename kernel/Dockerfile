@@ -4,14 +4,21 @@ FROM debian:bookworm-slim AS kernel_builder
 RUN apt-get update && apt-get install -y \
     build-essential gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf \
     bc bison flex libssl-dev make libc6-dev libncurses5-dev \
-    git wget cpio kmod rsync device-tree-compiler mkbootimg \
+    git wget xz-utils cpio kmod rsync device-tree-compiler mkbootimg \
     && rm -rf /var/lib/apt/lists/*
 
 ENV ARCH=arm
 ENV CROSS_COMPILE=arm-linux-gnueabihf-
 
 WORKDIR /src
-RUN git clone --depth=1 -b v7.2.9 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+# Tarball instead of `git clone --depth=1`: the stable-tree clone kept dying mid-transfer on this
+# link (curl 56 GnuTLS recv error). Same tree that buildroot pulls headers from; deterministic and
+# retried. Source: https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz
+RUN wget -q --tries=5 --timeout=60 -O /tmp/linux.tar.xz \
+        https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz \
+ && tar -xJf /tmp/linux.tar.xz -C /src \
+ && mv /src/linux-7.2.9 /src/linux \
+ && rm -f /tmp/linux.tar.xz
 
 WORKDIR /src/linux
 
