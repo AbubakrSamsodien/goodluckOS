@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: MIT
+#
+## Modular - goodluckOS
+#
+# A modular file that is sourced for specific script lines required by ports
+# running on goodluckOS (GA36-MB, Allwinner A23/A33, 32-bit armhf).
+#
+# usage `[ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && source "${controlfolder}/mod_${CFW_NAME}.txt"`
+#
+# NOTE: upstream device_info.txt does not know goodluckOS yet, so the seed
+# script forces CFW_NAME=goodluckOS in our PortMaster copy until the upstream
+# PR (hardware.py / platform.py / device_info.txt) lands.
+
+# control.txt only detects `sudo`; goodluckOS ships `doas` (passwordless for
+# player, see /etc/doas.conf), so point ESUDO at it explicitly.
+export ESUDO="doas"
+
+# Our visible console is tty1 (appd draws the loading screen there).
+CUR_TTY="/dev/tty1"
+
+# 3.5" panel is 640x480. device_info.txt should fill these via
+# sdl_resolution.armhf; belt-and-suspenders defaults only.
+[ -z "$DISPLAY_WIDTH" ] && export DISPLAY_WIDTH=640
+[ -z "$DISPLAY_HEIGHT" ] && export DISPLAY_HEIGHT=480
+
+# Godot 2 / 3+ fullscreen at panel resolution (muOS pattern).
+GODOT2_OPTS="-r ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} -f"
+GODOT_OPTS="--resolution ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} -f"
+
+# System RetroArch (Buildroot package) + our config location.
+raloc="/usr/bin"
+raconf="--config /home/player/.config/retroarch/retroarch.cfg"
+
+# --- Gamepad: GA36-MB Gamepad ("GA36-MB-Gamepad", BUS_HOST, 2 sticks) ---
+# SDL GUID guess from kernel/drivers/ga36mb-gamepad.c: bustype BUS_HOST
+# (0x19), no explicit vendor/product/version (default 0). CONFIRM ON
+# HARDWARE with `evtest` (it prints bustype/vendor/product in its header);
+# format is 1900<VVVV><PPPP><RRRR> + zeros. If it differs, update DEVICE
+# below AND the matching line in gamecontrollerdb.txt.
+export DEVICE="19000000000000000000000000000000"
+param_device="ga36mb"
+
+# TODO(hardware): append our mapping line to gamecontrollerdb.txt. Get the
+# button/axis indices with `evtest /dev/input/eventX`, then add one line:
+#   <GUID>,GA36-MB Gamepad,a:b0,b:b1,x:b2,y:b3,back:b8,guide:b10,start:b9,
+#   leftstick:b11,rightstick:b12,leftshoulder:b4,rightshoulder:b5,
+#   lefttrigger:b6,righttrigger:b7,leftx:a0,lefty:a1,rightx:a2,righty:a3,
+#   dpleft:h0.8,dpdown:h0.4,dpright:h0.2,dpup:h0.1,platform:Linux,
+# (indices above are PLACEHOLDERS — fill from evtest output.) Until that
+# line exists, get_controls() falls back to the full DB copy, which will
+# not match our pad, so gptokeyb profiles keyed on $DEVICE won't apply.

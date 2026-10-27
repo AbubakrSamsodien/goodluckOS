@@ -1,0 +1,137 @@
+#!/bin/sh
+# /etc/init.d/S12ports — PortMaster storage.
+#
+# Ports live in ports.img, an ext4 loopback image on the HOME partition
+# (vfat can't do symlinks/exec bits, which ports need). The image survives
+# rootfs-only updates (it lives on HOME, not the linux partition) and rides
+# along through Resize Home's tar backup/restore as a regular file.
+# Mounted at /roms/ports so PortMaster's standard layout
+# (/roms/ports/PortMaster + /roms/ports/<port>/ + autoinstall/) just works.
+#
+# Sideload flow (no WiFi on this device): drop files in one of these
+# MTP-visible HOME folders and they are picked up on next boot:
+#   ~/autoinstall/  - *.zip port/game zips -> PortMaster/autoinstall/
+#                     (the GUI installs them on launch)
+#   ~/autoinstall/  - *.squashfs runtimes -> PortMaster/libs/
+# First boot also seeds PortMaster itself from ~/.seed/PortMaster.zip,
+# which image/build.sh downloads at image-build time (never in git).
+
+if [ "$1" = "stop" ]; then
+    umount /roms/ports 2>/dev/null
+    exit 0
+fi
+
+PORTS_IMG=/home/player/ports.img
+PORTS_MNT=/roms/ports
+SEED_DIR=/home/player/.seed
+DROPBOX=/home/player/autoinstall
+LOG=/var/log/ports.log
+
+log() { echo "ports: $*" >> "$LOG"; }
+
+: > "$LOG"
+
+if ! mountpoint -q /home/player; then
+    log "HOME not mounted, skipping"
+    exit 0
+fi
+
+# Create the image on first boot: 2G if it fits, else free-minus-128M,
+# give up below 700M free (a bare 1G card with no Resize Home).
+NEED_CHOWN=0
+if [ ! -f "$PORTS_IMG" ]; then
+    FREE_KB=$(df -k /home/player | awk 'NR==2{print $4}')
+    case "$FREE_KB" in
+        ''|*[!0-9]*) FREE_KB=0 ;;
+    esac
+    log "no ports.img, HOME free ${FREE_KB}KB"
+    if [ "$FREE_KB" -lt 716800 ]; then
+        log "not enough free space, skipping (run Resize Home on a bigger card)"
+        exit 0
+    fi
+    IMG_MB=2048
+    if [ "$FREE_KB" -lt 2228224 ]; then
+        IMG_MB=$(( (FREE_KB / 1024) - 128 ))
+    fi
+    log "creating ${IMG_MB}M $PORTS_IMG"
+    if ! dd if=/dev/zero of="$PORTS_IMG" bs=1M count="$IMG_MB" >>"$LOG" 2>&1; then
+        log "ERROR: dd failed"; rm -f "$PORTS_IMG"; exit 1
+    fi
+    if ! mkfs.ext4 -q -L ports -F "$PORTS_IMG" >>"$LOG" 2>&1; then
+        log "ERROR: mkfs.ext4 failed"; rm -f "$PORTS_IMG"; exit 1
+    fi
+    NEED_CHOWN=1
+fi
+
+mkdir -p "$PORTS_MNT"
+if ! mountpoint -q "$PORTS_MNT"; then
+    if ! mount -o loop "$PORTS_IMG" "$PORTS_MNT" >>"$LOG" 2>&1; then
+        log "ERROR: loop mount failed"; exit 1
+    fi
+fi
+log "mounted $PORTS_IMG at $PORTS_MNT"
+
+CONTROL="$PORTS_MNT/PortMaster"
+
+# Seed the PortMaster app itself on first boot.
+if [ ! -f "$CONTROL/control.txt" ]; then
+    NEED_CHOWN=1
+    if [ -f "$SEED_DIR/PortMaster.zip" ]; then
+        log "seeding PortMaster from $SEED_DIR/PortMaster.zip"
+        if ! unzip -q -o "$SEED_DIR/PortMaster.zip" -d "$PORTS_MNT" >>"$LOG" 2>&1; then
+            log "ERROR: seed unzip failed"; exit 1
+        fi
+    else
+        log "no control.txt and no seed zip; copy PortMaster.zip to ~/.seed/ or ~/autoinstall/"
+    fi
+fi
+
+# Overlay our CFW profile (idempotent copy; never overwrites upstream files
+# except our own mod file).
+if [ -d "$CONTROL" ]; then
+    cp -f /usr/share/portmaster/mod_goodluckOS.txt "$CONTROL/mod_goodluckOS.txt" 2>>"$LOG"
+    # Upstream device_info.txt doesn't know goodluckOS yet: force detection.
+    # Removed once the upstream PR (hardware.py/platform.py) lands.
+    if ! grep -q 'goodluckos' "$CONTROL/device_info.txt" 2>/dev/null; then
+        cat >> "$CONTROL/device_info.txt" <<'EOF'
+
+# goodluckOS (GA36-MB): /etc/os-release carries ID=goodluckos.
+if [ "$ID" = "goodluckos" ]; then
+    export CFW_NAME="goodluckOS"
+    export DEVICE_NAME="GA36-MB"
+    export DEVICE_ARCH="armhf"
+    export DISPLAY_WIDTH="640"
+    export DISPLAY_HEIGHT="480"
+fi
+EOF
+        log "appended goodluckOS detection to device_info.txt"
+    fi
+    mkdir -p "$CONTROL/libs" "$CONTROL/autoinstall"
+fi
+
+# MTP dropbox: stage sideloaded files, then clear the dropbox.
+if [ -d "$DROPBOX" ] && [ -d "$CONTROL" ]; then
+    for f in "$DROPBOX"/*.zip; do
+        [ -e "$f" ] || break
+        log "staging $(basename "$f") -> autoinstall"
+        mv -f "$f" "$CONTROL/autoinstall/" 2>>"$LOG"
+    done
+    for f in "$DROPBOX"/*.squashfs; do
+        [ -e "$f" ] || break
+        log "staging $(basename "$f") -> libs"
+        mv -f "$f" "$CONTROL/libs/" 2>>"$LOG"
+    done
+    for f in "$SEED_DIR"/*.squashfs; do
+        [ -e "$f" ] || break
+        if [ ! -e "$CONTROL/libs/$(basename "$f")" ]; then
+            log "seeding runtime $(basename "$f") -> libs"
+            cp -f "$f" "$CONTROL/libs/" 2>>"$LOG"
+        fi
+    done
+fi
+
+if [ "$NEED_CHOWN" = 1 ]; then
+    chown -R player:player "$PORTS_MNT" 2>/dev/null
+fi
+log "done"
+exit 0

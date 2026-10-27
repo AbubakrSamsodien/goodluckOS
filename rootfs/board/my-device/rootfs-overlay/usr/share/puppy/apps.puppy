@@ -95,6 +95,20 @@ DESCRIPTION=It's Doom.
 ICON=/usr/share/icons/chocolate-doom.png
 COMMAND=chocolate-doom
 
+[ENTRY]
+CATEGORY=Games
+NAME=PortMaster
+DESCRIPTION=Install and manage game ports. No WiFi on this device: drop port .zip files and runtime .squashfs files into ~/autoinstall/ over MTP, reboot, then install from here.
+COMMAND=bash /roms/ports/PortMaster/PortMaster.sh
+
+[ARCHIVE]
+NAME=Ports
+Description=PortMaster game ports (per-port .sh launchers in /roms/ports)
+ENTRY_DIRECTORIES=/roms/ports
+ENTRY_EXTENSIONS=sh
+ENTRY_ICONS_DIRECTORIES=/roms/ports
+COMMAND=bash %s
+
 [ARCHIVE]
 NAME=Playstation
 Description=Sony Playstation

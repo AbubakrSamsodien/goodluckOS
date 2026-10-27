@@ -1,0 +1,14 @@
+#!/bin/sh
+# systemctl shim for goodluckOS (BusyBox init, no systemd).
+# ~20 legacy PortMaster ports call `systemctl restart oga_events` on exit.
+# We have no such service, so: succeed quietly for service verbs, and only
+# complain about genuinely unsupported usage. Never block a port script.
+case "$1" in
+  start|stop|restart|reload|enable|disable|is-active|is-enabled|daemon-reload)
+    exit 0
+    ;;
+  *)
+    echo "systemctl shim: unsupported invocation: $*" >&2
+    exit 0
+    ;;
+esac

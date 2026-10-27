@@ -1,0 +1,5 @@
+# PortMaster: gptokeyb (gamepad-to-keyboard mapper) needs to create virtual
+# input devices. Allow the player user to write /dev/uinput without ESUDO,
+# matching what other CFWs do via udev (ArchR pattern). Port scripts also
+# chmod via $ESUDO as a fallback; both paths work here.
+KERNEL=="uinput", MODE="0666"

@@ -88,3 +88,37 @@ BR2_PACKAGE_PPSSPP=y
 BR2_PACKAGE_EVSIEVE=y
 BR2_PACKAGE_CREDITS=y
 BR2_PACKAGE_GLOS_SETUP=y
+# PortMaster support: GNU shell+coreutils (ports use #!/bin/bash and GNU
+# flags busybox applets lack), python3 (PortMaster GUI/harbourmaster; _XZ =
+# lzma module harbourmaster requires, _SSL so vendored requests imports,
+# _SQLITE for its caches, _ZLIB for its zip handling), mount/losetup for
+# squashfs runtimes, zramctl/taskset ($TASKSET), archive tools, on-device
+# port debugging (strace/file/htop). Verify after configure.sh: grep each
+# symbol in out/buildroot/.config — unknown symbols are silently ignored.
+BR2_PACKAGE_BASH=y
+BR2_PACKAGE_COREUTILS=y
+BR2_PACKAGE_FINDUTILS=y
+BR2_PACKAGE_GAWK=y
+BR2_PACKAGE_GREP=y
+BR2_PACKAGE_SED=y
+BR2_PACKAGE_PSMISC=y
+BR2_PACKAGE_PROCPS_NG=y
+BR2_PACKAGE_UNZIP=y
+BR2_PACKAGE_XZ=y
+BR2_PACKAGE_DOS2UNIX=y
+BR2_PACKAGE_DIALOG=y
+BR2_PACKAGE_RSYNC=y
+BR2_PACKAGE_SQUASHFS=y
+BR2_PACKAGE_E2FSPROGS=y
+BR2_PACKAGE_FILE=y
+BR2_PACKAGE_STRACE=y
+BR2_PACKAGE_HTOP=y
+BR2_PACKAGE_PYTHON3=y
+BR2_PACKAGE_PYTHON3_XZ=y
+BR2_PACKAGE_PYTHON3_SSL=y
+BR2_PACKAGE_PYTHON3_SQLITE=y
+BR2_PACKAGE_PYTHON3_ZLIB=y
+BR2_PACKAGE_UTIL_LINUX_MOUNT=y
+BR2_PACKAGE_UTIL_LINUX_LOSETUP=y
+BR2_PACKAGE_UTIL_LINUX_SCHEDUTILS=y
+BR2_PACKAGE_UTIL_LINUX_ZRAMCTL=y

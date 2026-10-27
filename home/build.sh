@@ -19,6 +19,11 @@ mkdir -p overlay/roms/sms/icons
 mkdir -p overlay/roms/gg/icons
 mkdir -p overlay/roms/segacd/icons
 mkdir -p overlay/.config/retroarch/cores
+# PortMaster sideload inbox (MTP-visible): drop port .zip files and runtime
+# .squashfs files here; S12ports stages them into ports.img on next boot.
+mkdir -p overlay/autoinstall
+# PortMaster app seed (populated by image/build.sh, never committed).
+mkdir -p overlay/.seed
 
 rm -rf staging
 rm -rf out/*

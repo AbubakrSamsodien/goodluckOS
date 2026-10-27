@@ -44,6 +44,19 @@ tar-in home.tar /
 umount /
 EOF
 
+# PortMaster seed: ~/.seed/PortMaster.zip (+ optional *.squashfs runtimes
+# dropped into staging/seed/ by hand). S12ports installs these into
+# ports.img on first boot. seed.tar always exists (build.sh bundles the
+# dir even when empty/offline).
+COPY staging/seed.tar ./
+RUN guestfish -a goodluck_a33.img <<EOF
+run
+mount /dev/sda2 /
+mkdir-p /.seed
+tar-in seed.tar /.seed
+umount /
+EOF
+
 # # Inject custom bootlogo
 # COPY res/goodluck_bootlogo.bmp ./goodluck_bootlogo.bmp
 # RUN guestfish -a goodluck_$VARIANT.img <<EOF
@@ -85,6 +98,15 @@ EOF
 # tar-in home.tar /
 # umount /
 # EOF
+
+# PortMaster seed (see A33 block above).
+RUN guestfish -a goodluck_a23.img <<EOF
+run
+mount /dev/sda2 /
+mkdir-p /.seed
+tar-in seed.tar /.seed
+umount /
+EOF
 
 # # Inject custom bootlogo
 # COPY res/goodluck_bootlogo.bmp ./goodluck_bootlogo.bmp
